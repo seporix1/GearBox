@@ -1,41 +1,114 @@
-<ul id="messages"></ul>
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>GearBox V1 - Özel Sürücü Kulübü</title>
+    <style>
+        body { font-family: sans-serif; background: #121212; color: #e0e0e0; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        #login-area, #chat-area { background: #1e1e1e; padding: 25px; border-radius: 15px; border: 1px solid #333; width: 350px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        input { width: 90%; padding: 12px; margin: 10px 0; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 5px; outline: none; }
+        button { padding: 12px; background: #c62828; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        button:hover { background: #ff5252; }
+        #messages { height: 250px; overflow-y: auto; background: #161616; padding: 10px; margin: 10px 0; border-radius: 5px; text-align: left; border: 1px solid #333; }
+        .gear-id { color: #f44336; font-weight: bold; }
+        #emoji-picker { display: none; background: #2a2a2a; border: 1px solid #444; padding: 8px; border-radius: 5px; margin-bottom: 10px; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+        .emoji { cursor: pointer; font-size: 20px; transition: 0.2s; }
+        .emoji:hover { transform: scale(1.3); }
+    </style>
+</head>
+<body>
 
-<script src="/socket.io/socket.io.js"></script>
-<script>
-    const socket = io();
-    const messages = document.getElementById('messages');
+    <div id="login-area">
+        <h2>🏎️ GearBox Giriş</h2>
+        <input type="text" id="usernameInput" placeholder="Kullanıcı Adın">
+        <button style="width: 100%;" onclick="login()">Piste Çık</button>
+    </div>
 
-    // Eski mesajları ekrana bas
-    socket.on('previousMessages', (data) => {
-        data.forEach(msg => appendMessage(msg));
-    });
+    <div id="chat-area" style="display:none;">
+        <h3>Sürücü: <span id="myName"></span></h3>
+        <p>Senin Plakan: <span class="gear-id" id="myGearID"></span></p>
+        <hr style="border: 0.5px solid #333;">
+        <input type="text" id="friendIDInput" placeholder="Arkadaşının ID'sini gir...">
+        <button style="width: 100%; margin-bottom: 10px;" onclick="connectFriend()">Bağlan</button>
+        
+        <div id="messages"></div>
 
-    // Yeni mesaj geldiğinde
-    socket.on('message', (msg) => {
-        appendMessage(msg);
-    });
+        <div id="emoji-picker">
+            <span class="emoji" onclick="addEmoji('😀')">😀</span>
+            <span class="emoji" onclick="addEmoji('😂')">😂</span>
+            <span class="emoji" onclick="addEmoji('🔥')">🔥</span>
+            <span class="emoji" onclick="addEmoji('🏎️')">🏎️</span>
+            <span class="emoji" onclick="addEmoji('😎')">😎</span>
+            <span class="emoji" onclick="addEmoji('🚀')">🚀</span>
+        </div>
 
-    // Mesaj silindiğinde ekrandan kaldır
-    socket.on('messageDeleted', (id) => {
-        const element = document.getElementById(id);
-        if (element) element.remove();
-    });
+        <div style="display: flex; gap: 5px;">
+            <button onclick="toggleEmoji()">😊</button>
+            <input type="text" id="msgInput" placeholder="Mesaj..." style="margin:0; flex: 1;">
+            <button onclick="send()">✈️</button>
+        </div>
+    </div>
 
-    function appendMessage(msg) {
-        const li = document.createElement('li');
-        li.id = msg._id; // Her mesajın bir ID'si var
-        li.innerHTML = `<strong>${msg.user}:</strong> ${msg.text} 
-                        <button onclick="deleteMsg('${msg._id}')" style="margin-left:10px; color:red; cursor:pointer;">🗑️</button>`;
-        messages.appendChild(li);
-    }
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let me = {};
+        let activeRoom = "";
 
-    function deleteMsg(id) {
-        socket.emit('deleteMessage', id); // Sunucuya "Bunu sil" de
-    }
+        function login() {
+            const user = document.getElementById('usernameInput').value;
+            if(user) socket.emit('join', user);
+        }
 
-    // Mesaj gönderme fonksiyonun buraya gelecek (send button click)
-    function sendMessage() {
-        const text = document.getElementById('msgInput').value;
-        socket.emit('chatMessage', { user: 'Kaan', text: text });
-    }
-</script>
+        socket.on('userReady', (userData) => {
+            me = userData;
+            document.getElementById('login-area').style.display = 'none';
+            document.getElementById('chat-area').style.display = 'block';
+            document.getElementById('myName').innerText = me.username;
+            document.getElementById('myGearID').innerText = me.gearID;
+        });
+
+        function connectFriend() {
+            const friendID = document.getElementById('friendIDInput').value;
+            if(friendID) {
+                activeRoom = [me.gearID, friendID].sort().join('_');
+                document.getElementById('messages').innerHTML = "<i>Odaya bağlanıldı...</i>";
+                socket.emit('joinRoom', { myID: me.gearID, friendID });
+            }
+        }
+
+        socket.on('previousMessages', (msgs) => {
+            document.getElementById('messages').innerHTML = "";
+            msgs.forEach(addMessage);
+        });
+
+        socket.on('message', addMessage);
+
+        function addMessage(msg) {
+            const div = document.createElement('div');
+            div.style.marginBottom = "5px";
+            div.innerHTML = `<b>${msg.user}:</b> ${msg.text}`;
+            document.getElementById('messages').appendChild(div);
+            document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+        }
+
+        function send() {
+            const text = document.getElementById('msgInput').value;
+            if(text && activeRoom) {
+                socket.emit('chatMessage', { room: activeRoom, user: me.username, text });
+                document.getElementById('msgInput').value = '';
+                document.getElementById('emoji-picker').style.display = 'none';
+            }
+        }
+
+        function toggleEmoji() {
+            const p = document.getElementById('emoji-picker');
+            p.style.display = p.style.display === 'grid' ? 'none' : 'grid';
+        }
+
+        function addEmoji(e) {
+            document.getElementById('msgInput').value += e;
+        }
+    </script>
+</body>
+</html>
