@@ -8,7 +8,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 // --- 🛠️ MONGODB BAĞLANTISI (BURAYI UNUTMA) ---
-const MONGO_URL = mongodb+srv://seporix42_db_user:HwfQMf5iHAqowpzm@cluster0.jtgjz3y.mongodb.net/?appName=Cluster0; 
+const MONGO_URL = mongodb+srv:"mongodb+srv://seporix42_db_user:HwfQMf5iHAqowpzm@cluster0.jtgjz3y.mongodb.net/?appName=Cluster0"; 
 mongoose.connect(MONGO_URL).then(() => console.log("🏎️ GearBox V1.1 Bağlandı!"));
 
 // --- 📦 MODELLER ---
