@@ -1,0 +1,41 @@
+<ul id="messages"></ul>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    const socket = io();
+    const messages = document.getElementById('messages');
+
+    // Eski mesajları ekrana bas
+    socket.on('previousMessages', (data) => {
+        data.forEach(msg => appendMessage(msg));
+    });
+
+    // Yeni mesaj geldiğinde
+    socket.on('message', (msg) => {
+        appendMessage(msg);
+    });
+
+    // Mesaj silindiğinde ekrandan kaldır
+    socket.on('messageDeleted', (id) => {
+        const element = document.getElementById(id);
+        if (element) element.remove();
+    });
+
+    function appendMessage(msg) {
+        const li = document.createElement('li');
+        li.id = msg._id; // Her mesajın bir ID'si var
+        li.innerHTML = `<strong>${msg.user}:</strong> ${msg.text} 
+                        <button onclick="deleteMsg('${msg._id}')" style="margin-left:10px; color:red; cursor:pointer;">🗑️</button>`;
+        messages.appendChild(li);
+    }
+
+    function deleteMsg(id) {
+        socket.emit('deleteMessage', id); // Sunucuya "Bunu sil" de
+    }
+
+    // Mesaj gönderme fonksiyonun buraya gelecek (send button click)
+    function sendMessage() {
+        const text = document.getElementById('msgInput').value;
+        socket.emit('chatMessage', { user: 'Kaan', text: text });
+    }
+</script>
